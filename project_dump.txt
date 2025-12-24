@@ -1,0 +1,693 @@
+----- FILE: ./src/components/App/App.module.css -----
+.app {
+    width: 90%;
+    max-width: 1280px;
+    margin: 0px auto;
+    padding: 0 16px 16px;
+}
+
+.toolbar {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.button {
+    padding: 6px 12px;
+    font-size: 16px;
+    color: #fff;
+    background-color: #0d6efd;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.button:hover {
+    background-color: #0b5ed7;
+}----- FILE: ./src/components/App/App.tsx -----
+import NoteList from "../NoteList/NoteList";
+import css from "./App.module.css";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import fetchNotes from "../services/noteService";
+import { useState } from "react";
+import SearchBox from "../SearchBox/SearchBox";
+import Pagination from "../Pagination/Pagination";
+import Modal from "../Modal/Modal";
+import NoteForm from "../NoteForm/NoteForm";
+import { useDebouncedCallback } from "use-debounce";
+
+export default function App() {
+  const [page, setPage] = useState(1);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [search, setSearch] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const debounced = useDebouncedCallback((value: string) => {
+    setDebouncedQuery(value);
+    setPage(1);
+  }, 1000);
+
+  const handleSearch = (text: string) => {
+    setSearch(text);
+    debounced(text);
+  };
+
+  const { data, isLoading, isError, isSuccess } = useQuery({
+    queryKey: ["notes", page, debouncedQuery],
+    queryFn: () => fetchNotes(page, search),
+    placeholderData: keepPreviousData,
+  });
+
+  const totalPages = data?.totalPages ?? 0;
+  return (
+    <div className={css.app}>
+      <header className={css.toolbar}>
+        {<SearchBox value={search} onChange={handleSearch} />}
+        {totalPages > 1 && (
+          <Pagination page={page} totalPages={totalPages} setPage={setPage} />
+        )}
+        {
+          <button className={css.button} onClick={() => setIsModalOpen(true)}>
+            Create note +
+          </button>
+        }
+      </header>
+      {isLoading && <p>Loading...</p>}
+      {isError && <p>Error!</p>}
+      {isSuccess && <NoteList notes={data.notes} />}
+
+      {isModalOpen && (
+        <Modal onClose={() => setIsModalOpen(false)}>
+          <NoteForm onClose={() => setIsModalOpen(false)} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+----- FILE: ./src/components/Modal/Modal.module.css -----
+.backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(33, 37, 41, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background-color: #ffffff;
+    padding: 24px;
+    border-radius: 8px;
+    max-width: 500px;
+    width: 100%;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}----- FILE: ./src/components/Modal/Modal.tsx -----
+import { useEffect } from "react";
+import css from "./Modal.module.css";
+import { createPortal } from "react-dom";
+
+interface ModalProps {
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+function Modal({ onClose, children }: ModalProps) {
+  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "auto";
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      className={css.backdrop}
+      role="dialog"
+      aria-modal="true"
+      onClick={handleBackdropClick}
+    >
+      <div className={css.modal}>{children}</div>
+    </div>,
+    document.body
+  );
+}
+
+export default Modal;
+----- FILE: ./src/components/NoteForm/NoteForm.module.css -----
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    font-weight: 500;
+    color: #212529;
+}
+
+.input,
+.textarea,
+.select {
+    margin-top: 4px;
+    padding: 8px 12px;
+    font-size: 14px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    resize: none;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.submitButton {
+    padding: 8px 16px;
+    font-size: 16px;
+    background-color: #0d6efd;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.submitButton:hover {
+    background-color: #0b5ed7;
+}
+
+.submitButton:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+.cancelButton {
+    padding: 8px 16px;
+    font-size: 16px;
+    background-color: #f8f9fa;
+    color: #212529;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.cancelButton:hover {
+    background-color: #e2e6ea;
+}
+
+.error {
+    color: #dc3545;
+    font-size: 12px;
+    margin-top: 4px;
+}----- FILE: ./src/components/NoteForm/NoteForm.tsx -----
+import css from "./NoteForm.module.css";
+import { object, string } from "yup";
+import { ErrorMessage, Field, Form, Formik, type FormikHelpers } from "formik";
+import type { NoteTag } from "../types/note";
+import toast from "react-hot-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createNote, type NewNoteData } from "../services/noteService";
+
+interface NoteFormProps {
+  onClose: () => void;
+}
+
+interface NoteFormValues {
+  title: string;
+  content: string;
+  tag: NoteTag;
+}
+
+const initialValues: NoteFormValues = {
+  title: "",
+  content: "",
+  tag: "Todo",
+};
+
+export default function NoteForm({ onClose }: NoteFormProps) {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (newNote: NewNoteData) => createNote(newNote),
+    onSuccess: () => {
+      toast.success("Note is successfully uploaded");
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      onClose();
+    },
+    onError: (error) => {
+      toast.error(`${error.message}`);
+    },
+  });
+
+  const handleSubmit = (
+    values: NoteFormValues,
+    actions: FormikHelpers<NoteFormValues>
+  ) => {
+    mutation.mutate(values);
+    actions.resetForm();
+  };
+
+  const NoteFormSchema = object({
+    title: string()
+      .min(3, "Title must be at least 3 characters")
+      .max(50, "Title must be less then 50 characters")
+      .required("Title is required"),
+    content: string().max(500, "Note content must be less then 500 characters"),
+    tag: string()
+      .required()
+      .oneOf(["Todo", "Work", "Personal", "Meeting", "Shopping"]),
+  });
+  return (
+    <Formik
+      initialValues={initialValues}
+      onSubmit={handleSubmit}
+      validationSchema={NoteFormSchema}
+    >
+      <Form className={css.form}>
+        <div className={css.formGroup}>
+          <label htmlFor="title">Title</label>
+          <Field id="title" type="text" name="title" className={css.input} />
+          <ErrorMessage name="title" className={css.error} component="div" />
+        </div>
+
+        <div className={css.formGroup}>
+          <label htmlFor="content">Content</label>
+          <Field
+            as="textarea"
+            id="content"
+            name="content"
+            rows={8}
+            className={css.textarea}
+          />
+          <ErrorMessage name="content" className={css.error} component="div" />
+        </div>
+
+        <div className={css.formGroup}>
+          <label htmlFor="tag">Tag</label>
+          <Field as="select" id="tag" name="tag" className={css.select}>
+            <option value="Todo">Todo</option>
+            <option value="Work">Work</option>
+            <option value="Personal">Personal</option>
+            <option value="Meeting">Meeting</option>
+            <option value="Shopping">Shopping</option>
+          </Field>
+          <ErrorMessage name="tag" className={css.error} component="div" />
+        </div>
+
+        <div className={css.actions}>
+          <button onClick={onClose} type="button" className={css.cancelButton}>
+            Cancel
+          </button>
+          <button type="submit" className={css.submitButton} disabled={false}>
+            Create note
+          </button>
+        </div>
+      </Form>
+    </Formik>
+  );
+}
+----- FILE: ./src/components/NoteList/NoteList.module.css -----
+.list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.listItem {
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 180px;
+}
+
+.title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: #212529;
+}
+
+.content {
+    margin: 0;
+    flex-grow: 1;
+    font-size: 14px;
+    color: #495057;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.button {
+    align-self: flex-end;
+    padding: 6px 12px;
+    font-size: 14px;
+    color: #fff;
+    background-color: #dc3545;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.button:hover {
+    background-color: #bb2d3b;
+}
+
+.footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+}
+
+.tag {
+    display: inline-block;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: #0d6efd;
+    background-color: #e7f1ff;
+    border: 1px solid #b6d4fe;
+    border-radius: 12px;
+    max-width: 100px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}----- FILE: ./src/components/NoteList/NoteList.tsx -----
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Note } from "../types/note";
+import css from "./NoteList.module.css";
+import { deleteNote } from "../services/noteService";
+
+interface NoteListProps {
+  notes: Note[];
+}
+
+export default function NoteList({ notes }: NoteListProps) {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (taskId: string) => deleteNote(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+  });
+
+  const handleDelete = (noteId: string) => {
+    mutation.mutate(noteId);
+  };
+  return (
+    <ul className={css.list}>
+      {notes.map((note) => (
+        <li key={note.id} className={css.listItem}>
+          <h2 className={css.title}>{note.title}</h2>
+          <p className={css.content}>{note.content}</p>
+          <div className={css.footer}>
+            <span className={css.tag}>{note.tag}</span>
+            <button
+              className={css.button}
+              onClick={() => handleDelete(note.id)}
+            >
+              Delete
+            </button>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+----- FILE: ./src/components/Pagination/Pagination.module.css -----
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin: 16px 0;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pagination li {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    cursor: pointer;
+    min-width: 36px;
+    height: 36px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.pagination li a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    text-decoration: none;
+    color: #0d6efd;
+    font-size: 14px;
+}
+
+.pagination li:hover {
+    background-color: #e9ecef;
+}
+
+.pagination li.active:hover {
+    background-color: #0d6efd;
+}
+
+.active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.active a {
+    color: #fff !important;
+    font-weight: 500;
+}----- FILE: ./src/components/Pagination/Pagination.tsx -----
+import ReactPaginate from "react-paginate";
+import css from "./Pagination.module.css";
+
+interface PaginationProps {
+  totalPages: number;
+  setPage: (selected: number) => void;
+  page: number;
+}
+
+const Pagination = ({ totalPages, setPage, page }: PaginationProps) => {
+  return (
+    <ReactPaginate
+      pageCount={totalPages}
+      pageRangeDisplayed={4}
+      marginPagesDisplayed={1}
+      onPageChange={({ selected }) => setPage(selected + 1)}
+      forcePage={page - 1}
+      containerClassName={css.pagination}
+      activeClassName={css.active}
+      nextLabel="→"
+      previousLabel="←"
+    />
+  );
+};
+
+export default Pagination;
+----- FILE: ./src/components/SearchBox/SearchBox.module.css -----
+.input {
+    flex: 1;
+    max-width: 240px;
+    padding: 6px 12px;
+    font-size: 16px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}----- FILE: ./src/components/SearchBox/SearchBox.tsx -----
+import css from "./SearchBox.module.css";
+interface SearchBoxProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+export default function SearchBox({ value, onChange }: SearchBoxProps) {
+  return (
+    <input
+      className={css.input}
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Search notes..."
+    />
+  );
+}
+----- FILE: ./src/components/services/noteService.ts -----
+
+import type { Note, NoteTag } from "../types/note";
+import axios from "axios";
+const API_URL = "https://notehub-public.goit.study/api/notes";
+const NOTEHUB_TOKEN = import.meta.env.VITE_NOTEHUB_TOKEN;
+
+export interface NotesResponse {
+    notes: Note[];
+    totalPages:number
+} 
+
+export interface NewNoteData {
+    title: string;
+    content?: string;
+    tag:NoteTag
+}
+
+export default async function fetchNotes(page?: number, search?: string): Promise<NotesResponse>{
+    const response = await axios.get<NotesResponse>(API_URL, {
+        params: {
+        page,
+        search,
+        },
+        headers: {
+            Authorization: `Bearer ${NOTEHUB_TOKEN}`,
+        }
+ })
+    return response.data
+}
+
+export async function createNote (newNote:NewNoteData):Promise<Note> {
+    const response = await axios.post<Note>(API_URL, newNote, {
+        headers: {
+            accept: "application/json",
+            Authorization: `Bearer ${NOTEHUB_TOKEN}`,
+        },
+    });
+    return response.data;
+}
+
+export async function deleteNote(noteID :string) {
+    const deletedNote = await axios.delete<Note>(`${API_URL}/${noteID}`, {
+        headers: {
+            accept: "application/json",
+            Authorization: `Bearer ${NOTEHUB_TOKEN}`,
+        },
+    });
+    return deletedNote.data;
+}----- FILE: ./src/components/types/note.ts -----
+export type NoteTag = "Work" | "Personal" | "Meeting" | "Shopping" | "Todo";
+
+export interface Note {
+id: string;
+title: string;
+content: string;
+createdAt: string;
+updatedAt: string;
+tag: NoteTag;
+}----- FILE: ./src/index.css -----
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+}
+----- FILE: ./src/main.tsx -----
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createRoot } from "react-dom/client";
+import App from "./components/App/App";
+
+const queryClient = new QueryClient();
+createRoot(document.getElementById("root")!).render(
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>
+);
