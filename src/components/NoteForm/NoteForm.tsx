@@ -1,10 +1,10 @@
 import css from "./NoteForm.module.css";
 import { object, string } from "yup";
 import { ErrorMessage, Field, Form, Formik, type FormikHelpers } from "formik";
-import type { NoteTag } from "../types/note";
+import type { NoteTag } from "../../types/note";
 import toast from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createNote, type NewNoteData } from "../services/noteService";
+import { createNote, type NewNoteData } from "../../services/noteService";
 
 interface NoteFormProps {
   onClose: () => void;
