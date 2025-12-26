@@ -33,7 +33,7 @@
 import NoteList from "../NoteList/NoteList";
 import css from "./App.module.css";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import fetchNotes from "../services/noteService";
+import fetchNotes from "../../services/noteService";
 import { useState } from "react";
 import SearchBox from "../SearchBox/SearchBox";
 import Pagination from "../Pagination/Pagination";
@@ -233,10 +233,10 @@ export default Modal;
 import css from "./NoteForm.module.css";
 import { object, string } from "yup";
 import { ErrorMessage, Field, Form, Formik, type FormikHelpers } from "formik";
-import type { NoteTag } from "../types/note";
+import type { NoteTag } from "../../types/note";
 import toast from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createNote, type NewNoteData } from "../services/noteService";
+import { createNote, type NewNoteData } from "../../services/noteService";
 
 interface NoteFormProps {
   onClose: () => void;
@@ -413,9 +413,9 @@ export default function NoteForm({ onClose }: NoteFormProps) {
     text-overflow: ellipsis;
 }----- FILE: ./src/components/NoteList/NoteList.tsx -----
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Note } from "../types/note";
+import type { Note } from "../../types/note";
 import css from "./NoteList.module.css";
-import { deleteNote } from "../services/noteService";
+import { deleteNote } from "../../services/noteService";
 
 interface NoteListProps {
   notes: Note[];
@@ -552,66 +552,7 @@ export default function SearchBox({ value, onChange }: SearchBoxProps) {
     />
   );
 }
------ FILE: ./src/components/services/noteService.ts -----
-
-import type { Note, NoteTag } from "../types/note";
-import axios from "axios";
-const API_URL = "https://notehub-public.goit.study/api/notes";
-const NOTEHUB_TOKEN = import.meta.env.VITE_NOTEHUB_TOKEN;
-
-export interface NotesResponse {
-    notes: Note[];
-    totalPages:number
-} 
-
-export interface NewNoteData {
-    title: string;
-    content?: string;
-    tag:NoteTag
-}
-
-export default async function fetchNotes(page?: number, search?: string): Promise<NotesResponse>{
-    const response = await axios.get<NotesResponse>(API_URL, {
-        params: {
-        page,
-        search,
-        },
-        headers: {
-            Authorization: `Bearer ${NOTEHUB_TOKEN}`,
-        }
- })
-    return response.data
-}
-
-export async function createNote (newNote:NewNoteData):Promise<Note> {
-    const response = await axios.post<Note>(API_URL, newNote, {
-        headers: {
-            accept: "application/json",
-            Authorization: `Bearer ${NOTEHUB_TOKEN}`,
-        },
-    });
-    return response.data;
-}
-
-export async function deleteNote(noteID :string) {
-    const deletedNote = await axios.delete<Note>(`${API_URL}/${noteID}`, {
-        headers: {
-            accept: "application/json",
-            Authorization: `Bearer ${NOTEHUB_TOKEN}`,
-        },
-    });
-    return deletedNote.data;
-}----- FILE: ./src/components/types/note.ts -----
-export type NoteTag = "Work" | "Personal" | "Meeting" | "Shopping" | "Todo";
-
-export interface Note {
-id: string;
-title: string;
-content: string;
-createdAt: string;
-updatedAt: string;
-tag: NoteTag;
-}----- FILE: ./src/index.css -----
+----- FILE: ./src/index.css -----
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -691,3 +632,63 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </QueryClientProvider>
 );
+----- FILE: ./src/services/noteService.ts -----
+
+import type { Note, NoteTag } from "../types/note";
+import axios from "axios";
+const API_URL = "https://notehub-public.goit.study/api/notes";
+const NOTEHUB_TOKEN = import.meta.env.VITE_NOTEHUB_TOKEN;
+
+export interface NotesResponse {
+    notes: Note[];
+    totalPages:number
+} 
+
+export interface NewNoteData {
+    title: string;
+    content?: string;
+    tag:NoteTag
+}
+
+export default async function fetchNotes(page?: number, search?: string): Promise<NotesResponse>{
+    const response = await axios.get<NotesResponse>(API_URL, {
+        params: {
+        page,
+        search,
+        },
+        headers: {
+            Authorization: `Bearer ${NOTEHUB_TOKEN}`,
+        }
+ })
+    return response.data
+}
+
+export async function createNote (newNote:NewNoteData):Promise<Note> {
+    const response = await axios.post<Note>(API_URL, newNote, {
+        headers: {
+            accept: "application/json",
+            Authorization: `Bearer ${NOTEHUB_TOKEN}`,
+        },
+    });
+    return response.data;
+}
+
+export async function deleteNote(noteID :string) {
+    const deletedNote = await axios.delete<Note>(`${API_URL}/${noteID}`, {
+        headers: {
+            accept: "application/json",
+            Authorization: `Bearer ${NOTEHUB_TOKEN}`,
+        },
+    });
+    return deletedNote.data;
+}----- FILE: ./src/types/note.ts -----
+export type NoteTag = "Work" | "Personal" | "Meeting" | "Shopping" | "Todo";
+
+export interface Note {
+id: string;
+title: string;
+content: string;
+createdAt: string;
+updatedAt: string;
+tag: NoteTag;
+}
